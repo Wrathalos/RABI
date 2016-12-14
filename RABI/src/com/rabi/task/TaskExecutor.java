@@ -6,17 +6,22 @@ import java.util.TimerTask;
 import com.rabi.goal.GoalType;
 import com.rabi.goal.TimeGoal;
 
-public class TaskExecutor {
+import org.powerbot.script.rt6.ClientAccessor;
+import org.powerbot.script.rt6.ClientContext;
 
+public class TaskExecutor extends ClientAccessor {
+
+	private ClientContext ctx;
 	private static TaskExecutor instance;
 	private TaskStack taskStack = TaskStack.getInstance();
 	private Timer temporaryTimer;
 	private int temporarySecondsPassed = 0;
 	private int temporaryOreMined = 0;
 	private int temporaryExperienceGained = 0;
-	private boolean playerIsInactive = true;
 
-	private TaskExecutor() {
+	private TaskExecutor(ClientContext ctx) {
+		super(ctx);
+		this.ctx = ctx;
 		temporaryTimer = new Timer();
 	}
 
@@ -25,9 +30,9 @@ public class TaskExecutor {
 	 * 
 	 * @return TaskExecutor instance
 	 */
-	public static TaskExecutor getInstance() {
+	public static TaskExecutor getInstance(ClientContext ctx) {
 		if (instance == null) {
-			instance = new TaskExecutor();
+			instance = new TaskExecutor(ctx);
 		}
 		return instance;
 	}
@@ -38,7 +43,8 @@ public class TaskExecutor {
 	 */
 	public void executeTasks() {
 		while (taskStack.getStackSize() > 0) {
-			while (!taskStack.getCurrentTask().getTaskComplete() && taskStack.getCurrentTask().getGoal().getCompletionPercentage() != 100.0) {
+			while (!taskStack.getCurrentTask().getTaskComplete()
+					&& taskStack.getCurrentTask().getGoal().getCompletionPercentage() != 100.0) {
 				taskStack.getCurrentTask().setTaskComplete();
 				executeTaskInstruction(taskStack.getCurrentTask());
 			}
@@ -52,8 +58,7 @@ public class TaskExecutor {
 	 * @param task
 	 */
 	private void executeTaskInstruction(final Task task) {
-		while (playerIsInactive
-				&& task.getGoal().getCompletionPercentage() < 100.0) {
+		while (this.playerIsInactive() && task.getGoal().getCompletionPercentage() < 100.0) {
 			System.out.println("Executing " + task.getName() + "...");
 			switch (task.getGoal().getGoalType()) {
 			case TIME:
@@ -65,7 +70,7 @@ public class TaskExecutor {
 					System.out.println("Timer is already started...");
 					System.out.println(e);
 				}
-				//Simulating Task Instruction
+				// Simulating Task Instruction
 				temporaryTimer.scheduleAtFixedRate(new TimerTask() {
 					public void run() {
 						temporarySecondsPassed++;
@@ -73,34 +78,32 @@ public class TaskExecutor {
 						if (temporarySecondsPassed == 10) {
 							taskStack.getCurrentTask().setTaskComplete();
 							temporarySecondsPassed = 0;
-							playerIsInactive = true;
 							this.cancel();
 						}
 					}
 				}, 2000, 1000);
 				break;
 			case COUNT:
-				//Simulating Task Instruction
+				// Simulating Task Instruction
 				temporaryTimer.scheduleAtFixedRate(new TimerTask() {
 					public void run() {
 						temporarySecondsPassed++;
 						if (temporarySecondsPassed == 10) {
 							temporaryOreMined += 1;
 							task.getGoal().setCurrentCompletion(temporaryOreMined);
-							try{
+							try {
 								taskStack.getCurrentTask().setTaskComplete();
-							}catch(Exception e){
+							} catch (Exception e) {
 								System.out.println(e);
 							}
 							temporarySecondsPassed = 0;
-							playerIsInactive = true;
 							this.cancel();
 						}
 					}
 				}, 1000, 1000);
 				break;
 			case EXPERIENCE:
-				//Simulating Task Instruction
+				// Simulating Task Instruction
 				temporaryTimer.scheduleAtFixedRate(new TimerTask() {
 					public void run() {
 						temporarySecondsPassed++;
@@ -108,13 +111,12 @@ public class TaskExecutor {
 							temporaryOreMined += 1;
 							temporaryExperienceGained += 15;
 							task.getGoal().setCurrentCompletion(temporaryExperienceGained);
-							try{
+							try {
 								taskStack.getCurrentTask().setTaskComplete();
-							}catch(Exception e){
+							} catch (Exception e) {
 								System.out.println(e);
 							}
 							temporarySecondsPassed = 0;
-							playerIsInactive = true;
 							this.cancel();
 						}
 					}
@@ -122,8 +124,15 @@ public class TaskExecutor {
 				break;
 			}
 
-			playerIsInactive = false;
 		}
+
+	}
+	
+	/**
+	 * Checks to see if the player is inactive.
+	 */
+	private boolean playerIsInactive(){
+		return ctx.players.local().animation() == -1;
 	}
 
 }
